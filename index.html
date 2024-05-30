@@ -9,9 +9,17 @@
 <body>
     <h1>Screen Recorder</h1>
     <label>
-        Interval (minutes):
-        <input type="number" id="intervalInput" value="5" />
-    </label>
+        Video Duration (seconds):
+        <input type="number" id="videoDurationInput" value="5" />
+    </label><br />
+    <label>
+        Interval Between Recordings (minutes):
+        <input type="number" id="recordingIntervalInput" value="5" />
+    </label><br />
+    <label>
+        Total Schedule Duration (hours):
+        <input type="number" id="scheduleDurationInput" value="12" />
+    </label><br />
     <button id="startButton">Start</button>
     <button id="stopButton">Stop</button>
     <button id="selectDirectoryButton">Select Directory</button>
