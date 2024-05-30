@@ -1,18 +1,18 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const screenshot = require("screenshot-desktop");
 
 let recordingInterval;
 
-function startRecording(interval) {
+function startRecording(interval, directory) {
   recordingInterval = setInterval(() => {
     screenshot
       .all()
       .then((imgs) => {
         imgs.forEach((img, index) => {
           const screenshotPath = path.join(
-            app.getPath("pictures"),
+            directory || app.getPath("pictures"), // Use selected directory or default to pictures
             `screenshot-${Date.now()}-${index}.jpg`
           );
           fs.writeFile(screenshotPath, img, (err) => {
@@ -31,14 +31,23 @@ function stopRecording() {
   clearInterval(recordingInterval);
 }
 
-ipcMain.on("start-recording", (event, interval) => {
-  startRecording(interval);
+ipcMain.on("start-recording", (event, { interval, directory }) => {
+  startRecording(interval, directory);
   event.sender.send("recording-status", "Recording started");
 });
 
 ipcMain.on("stop-recording", (event) => {
   stopRecording();
   event.sender.send("recording-status", "Recording stopped");
+});
+
+ipcMain.on("open-directory-dialog", async (event) => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openDirectory"],
+  });
+  if (!result.canceled) {
+    event.sender.send("selected-directory", result.filePaths[0]);
+  }
 });
 
 function createWindow() {
