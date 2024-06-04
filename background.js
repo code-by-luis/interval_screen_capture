@@ -1,23 +1,33 @@
-const { app, Tray, Menu, dialog, ipcMain, screen } = require("electron");
+const { app, Tray, Menu, screen, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegStatic = require("ffmpeg-static");
 const { exec } = require("child_process");
+const AutoLaunch = require("auto-launch");
 
 ffmpeg.setFfmpegPath(ffmpegStatic);
 
 let tray = null;
 let currentRecordingProcess = null;
-const configPath = path.join(__dirname, "config.json");
+const configDir = app.getPath("userData");
+const configPath = path.join(configDir, "config.json");
 
 function readConfig() {
   if (fs.existsSync(configPath)) {
     const rawConfig = fs.readFileSync(configPath);
     return JSON.parse(rawConfig);
   } else {
-    console.error("Config file not found!");
-    app.quit();
+    const defaultConfig = {
+      videoDuration: 300,
+      directory: path.join(app.getPath("videos"), "screenshots"),
+      startHour: 8,
+      stopHour: 18,
+      active: true,
+      daysBeforeDelete: 5,
+    };
+    fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+    return defaultConfig;
   }
 }
 
@@ -149,6 +159,10 @@ app.whenReady().then(() => {
   tray = new Tray(path.join(__dirname, "icon.png"));
   const contextMenu = Menu.buildFromTemplate([
     {
+      label: "Open Config File",
+      click: () => shell.openPath(configPath),
+    },
+    {
       label: "Quit",
       click: () => app.quit(),
     },
@@ -168,4 +182,13 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+const autoLauncher = new AutoLaunch({
+  name: "YourApp",
+  path: app.getPath("exe"),
+});
+
+autoLauncher.isEnabled().then((isEnabled) => {
+  if (!isEnabled) autoLauncher.enable();
 });

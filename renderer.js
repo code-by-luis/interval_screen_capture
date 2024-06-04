@@ -22,26 +22,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const selectedDirectoryDisplay = document.getElementById("selectedDirectory");
 
   selectDirectoryButton.addEventListener("click", () => {
-    console.log("Select directory button clicked");
     ipcRenderer.send("open-directory-dialog");
   });
 
   ipcRenderer.on("selected-directory", (event, path) => {
     selectedDirectory = path;
     selectedDirectoryDisplay.textContent = `Selected Directory: ${path}`;
-    console.log("Directory selected:", path);
   });
 
   startButton.addEventListener("click", () => {
     const videoDuration = parseInt(videoDurationInput.value, 10);
     const recordingInterval = parseInt(recordingIntervalInput.value, 10);
     const scheduleDuration = parseInt(scheduleDurationInput.value, 10);
-    console.log("Start button clicked with values:", {
-      videoDuration,
-      recordingInterval,
-      scheduleDuration,
-      selectedDirectory,
-    });
     ipcRenderer.send("start-recording", {
       videoDuration,
       recordingInterval,
@@ -51,17 +43,10 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   stopButton.addEventListener("click", () => {
-    console.log("Stop button clicked");
     ipcRenderer.send("stop-recording");
   });
 
-  ipcRenderer.on("recording-status", (event, status) => {
-    console.log("Recording status:", status);
-  });
-
   ipcRenderer.on("start-recording", async (event, videoDuration) => {
-    console.log("Starting recording for", videoDuration, "seconds");
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
@@ -72,29 +57,30 @@ document.addEventListener("DOMContentLoaded", () => {
             maxWidth: 1280,
             minHeight: 720,
             maxHeight: 720,
-            maxFrameRate: 5, // Ensure frame rate is set correctly here
+            maxFrameRate: 5,
           },
         },
       });
 
       mediaRecorder = new MediaRecorder(stream, {
         mimeType: "video/webm; codecs=vp9",
-        videoBitsPerSecond: 500000, // Set the bitrate to 500 kbps
+        videoBitsPerSecond: 500000,
       });
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log("Data available:", event.data);
-        chunks.push(event.data);
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
       };
 
       mediaRecorder.onstop = async () => {
-        console.log("Recording stopped");
         const completeBlob = new Blob(chunks, { type: "video/webm" });
         const arrayBuffer = await completeBlob.arrayBuffer();
         const recordingPath = path.join(
           selectedDirectory || remote.app.getPath("videos"),
           `recording-${Date.now()}.webm`
         );
+
         fs.writeFile(recordingPath, Buffer.from(arrayBuffer), (err) => {
           if (err) {
             console.error("Failed to save video", err);
@@ -103,22 +89,18 @@ document.addEventListener("DOMContentLoaded", () => {
             ipcRenderer.send("convert-video", recordingPath);
           }
         });
-        chunks = []; // Clear chunks for the next recording
+
+        chunks = [];
       };
 
       mediaRecorder.start();
-      console.log("Recording started");
-
-      setTimeout(() => {
-        mediaRecorder.stop();
-      }, videoDuration * 1000); // videoDuration in seconds
+      setTimeout(() => mediaRecorder.stop(), videoDuration * 1000);
     } catch (err) {
       console.error("Error accessing media devices.", err);
     }
   });
 
   ipcRenderer.on("stop-recording", () => {
-    console.log("Stop recording");
     if (mediaRecorder && mediaRecorder.state !== "inactive") {
       mediaRecorder.stop();
     }

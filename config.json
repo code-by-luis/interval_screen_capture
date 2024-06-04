@@ -1,7 +1,8 @@
 {
-  "videoDuration": 60,
+  "videoDuration": 300,
   "directory": "O:\\screenshots",
   "startHour": 0,
   "stopHour": 24,
-  "active": true
+  "active": true,
+  "daysBeforeDelete": 5
 }
