@@ -1,8 +1,14 @@
 {
-  "videoDuration": 300,
-  "directory": "O:\\screenshots",
+  "videoDuration": 10,
+  "tempDirectory": "O:\\recordings\\temp",
+  "storageDirectory": "O:\\recordings\\final",
   "startHour": 0,
   "stopHour": 24,
   "active": true,
-  "daysBeforeDelete": 5
+  "daysBeforeDelete": 5,
+  "videoQuality": {
+    "scale": 0.35,
+    "frameRate": 5,
+    "bitrate": "100k"
+  }
 }

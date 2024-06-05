@@ -1,23 +1,61 @@
-const { app, Tray, Menu, dialog, ipcMain, screen } = require("electron");
+const { app, Tray, Menu, screen, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
+var util = require("util");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegStatic = require("ffmpeg-static");
 const { exec } = require("child_process");
+const AutoLaunch = require("auto-launch");
 
-ffmpeg.setFfmpegPath(ffmpegStatic);
+var logFile = fs.createWriteStream("log.txt", { flags: "a" });
+var logStdout = process.stdout;
+
+console.log = function () {
+  logFile.write(util.format.apply(null, arguments) + "\n");
+  logStdout.write(util.format.apply(null, arguments) + "\n");
+};
+console.error = console.log;
+
+const ffmpegPath = require("ffmpeg-static").replace(
+  "app.asar",
+  "app.asar.unpacked"
+);
+ffmpeg.setFfmpegPath(ffmpegPath);
 
 let tray = null;
 let currentRecordingProcess = null;
-const configPath = path.join(__dirname, "config.json");
+const configDir = app.getPath("userData");
+const configPath = path.join(configDir, "config.json");
+
+console.log(`Config directory: ${configDir}`);
+console.log(`Config file path: ${configPath}`);
 
 function readConfig() {
   if (fs.existsSync(configPath)) {
+    console.log("Config file exists. Reading configuration...");
     const rawConfig = fs.readFileSync(configPath);
     return JSON.parse(rawConfig);
   } else {
-    console.error("Config file not found!");
-    app.quit();
+    console.log("Config file not found. Creating default configuration...");
+    const defaultConfig = {
+      videoDuration: 300,
+      tempDirectory: "O:\\recordings\\temp",
+      storageDirectory: "O:\\recordings\\final",
+      startHour: 0,
+      stopHour: 24,
+      active: true,
+      daysBeforeDelete: 5,
+      videoQuality: {
+        scale: 0.35,
+        frameRate: 5,
+        bitrate: "100k",
+      },
+    };
+    console.log(`Default config: ${JSON.stringify(defaultConfig, null, 2)}`);
+    fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
+    ensureDirectoryExists(defaultConfig.tempDirectory);
+    ensureDirectoryExists(defaultConfig.storageDirectory);
+    return defaultConfig;
   }
 }
 
@@ -40,6 +78,7 @@ function getFormattedDateTime() {
 
 function ensureDirectoryExists(directory) {
   if (!fs.existsSync(directory)) {
+    console.log(`Creating directory: ${directory}`);
     fs.mkdirSync(directory, { recursive: true });
   }
 }
@@ -48,14 +87,12 @@ function getCombinedScreenResolution() {
   const displays = screen.getAllDisplays();
   let totalWidth = 0;
   let maxHeight = 0;
-
   displays.forEach((display) => {
     totalWidth += display.bounds.width;
     if (display.bounds.height > maxHeight) {
       maxHeight = display.bounds.height;
     }
   });
-
   return { width: totalWidth, height: maxHeight };
 }
 
@@ -79,34 +116,48 @@ function startRecording(config) {
     return;
   }
 
-  ensureDirectoryExists(config.directory);
+  ensureDirectoryExists(config.tempDirectory);
+  ensureDirectoryExists(config.storageDirectory);
 
   const { width: combinedWidth, height: combinedHeight } =
     getCombinedScreenResolution();
-  const { width: scaledWidth, height: scaledHeight } = calculateAspectRatioFit(
-    combinedWidth,
-    combinedHeight,
-    1280,
-    720
-  );
+  const scale = config.videoQuality.scale;
+  const scaledWidth = Math.round(combinedWidth * scale);
+  const scaledHeight = Math.round(combinedHeight * scale);
   const timestamp = getFormattedDateTime();
-  const recordingPath = path.join(
-    config.directory,
+  const tempRecordingPath = path.join(
+    config.tempDirectory,
+    `recording-${timestamp}.mp4`
+  );
+  const storageRecordingPath = path.join(
+    config.storageDirectory,
     `recording-${timestamp}.mp4`
   );
 
-  const ffmpegCommand = `${ffmpegStatic} -y -f gdigrab -framerate 5 -probesize 50M -analyzeduration 50M -i desktop -vf "scale=${scaledWidth}:${scaledHeight}" -t ${config.videoDuration} -c:v libx264 -preset veryslow -crf 30 -maxrate 500k -bufsize 1000k -pix_fmt yuv420p -f mp4 ${recordingPath}`;
+  const { frameRate, bitrate } = config.videoQuality;
+  const ffmpegCommand = `"${ffmpegPath}" -y -f gdigrab -framerate ${frameRate} -probesize 50M -analyzeduration 50M -i desktop -vf "scale=${scaledWidth}:${scaledHeight}" -t ${config.videoDuration} -c:v libx264 -preset veryslow -crf 30 -maxrate ${bitrate} -bufsize 1000k -pix_fmt yuv420p -f mp4 "${tempRecordingPath}"`;
 
   console.log(`Executing FFmpeg command: ${ffmpegCommand}`);
 
   currentRecordingProcess = exec(ffmpegCommand, (error, stdout, stderr) => {
     if (error) {
       console.error(`FFmpeg error: ${error.message}`);
+      return;
     }
     if (stderr) {
       console.error(`FFmpeg stderr: ${stderr}`);
     }
     console.log(`FFmpeg stdout: ${stdout}`);
+    // Move completed recording to storage directory
+    fs.rename(tempRecordingPath, storageRecordingPath, (err) => {
+      if (err) {
+        console.error(
+          `Failed to move recording to storage directory: ${err.message}`
+        );
+      } else {
+        console.log(`Recording moved to storage: ${storageRecordingPath}`);
+      }
+    });
     setTimeout(() => startRecording(config), 1000);
   });
 }
@@ -114,13 +165,11 @@ function startRecording(config) {
 function deleteOldRecordings(directory, daysBeforeDelete) {
   const now = Date.now();
   const cutoffTime = now - daysBeforeDelete * 24 * 60 * 60 * 1000;
-
   fs.readdir(directory, (err, files) => {
     if (err) {
       console.error("Failed to list files in directory", err);
       return;
     }
-
     files.forEach((file) => {
       const filePath = path.join(directory, file);
       fs.stat(filePath, (err, stats) => {
@@ -128,7 +177,6 @@ function deleteOldRecordings(directory, daysBeforeDelete) {
           console.error("Failed to get file stats", err);
           return;
         }
-
         if (stats.mtimeMs < cutoffTime) {
           fs.unlink(filePath, (err) => {
             if (err) {
@@ -145,9 +193,12 @@ function deleteOldRecordings(directory, daysBeforeDelete) {
 
 app.whenReady().then(() => {
   const config = readConfig();
-
   tray = new Tray(path.join(__dirname, "icon.png"));
   const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Open Config File",
+      click: () => shell.openPath(configPath),
+    },
     {
       label: "Quit",
       click: () => app.quit(),
@@ -157,7 +208,7 @@ app.whenReady().then(() => {
   tray.setContextMenu(contextMenu);
 
   setInterval(() => {
-    deleteOldRecordings(config.directory, config.daysBeforeDelete);
+    deleteOldRecordings(config.storageDirectory, config.daysBeforeDelete);
   }, 24 * 60 * 60 * 1000); // Check once a day
 
   console.log("Tray application started");
@@ -168,4 +219,13 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+const autoLauncher = new AutoLaunch({
+  name: "YourApp",
+  path: app.getPath("exe"),
+});
+
+autoLauncher.isEnabled().then((isEnabled) => {
+  if (!isEnabled) autoLauncher.enable();
 });
