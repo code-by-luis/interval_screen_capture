@@ -6,6 +6,8 @@ const ffmpeg = require("fluent-ffmpeg");
 const ffmpegStatic = require("ffmpeg-static");
 const { exec } = require("child_process");
 const AutoLaunch = require("auto-launch");
+const packageJson = require(path.join(app.getAppPath(), "package.json"));
+const appVersion = packageJson.version;
 
 const configDir = app.getPath("userData");
 const logPath = path.join(configDir, "log.txt");
@@ -207,8 +209,15 @@ function deleteOldRecordings(directory, daysBeforeDelete) {
 
 app.whenReady().then(() => {
   const config = readConfig();
+  const packageJson = require(path.join(app.getAppPath(), "package.json"));
+  const appVersion = packageJson.version;
+
   tray = new Tray(path.join(app.getAppPath(), "icon.png"));
   const contextMenu = Menu.buildFromTemplate([
+    {
+      label: `Version: ${appVersion}`,
+      enabled: false,
+    },
     {
       label: "Open Config File",
       click: () => shell.openPath(configPath),
