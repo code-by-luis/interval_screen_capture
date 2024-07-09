@@ -7,7 +7,9 @@ const ffmpegStatic = require("ffmpeg-static");
 const { exec } = require("child_process");
 const AutoLaunch = require("auto-launch");
 
-var logFile = fs.createWriteStream("log.txt", { flags: "a" });
+const configDir = app.getPath("userData");
+const logPath = path.join(configDir, "log.txt");
+var logFile = fs.createWriteStream(logPath, { flags: "a" });
 var logStdout = process.stdout;
 
 console.log = function () {
@@ -24,7 +26,6 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 let tray = null;
 let currentRecordingProcess = null;
-const configDir = app.getPath("userData");
 const configPath = path.join(configDir, "config.json");
 
 console.log(`Config directory: ${configDir}`);
@@ -122,8 +123,11 @@ function startRecording(config) {
   const { width: combinedWidth, height: combinedHeight } =
     getCombinedScreenResolution();
   const scale = config.videoQuality.scale;
-  const scaledWidth = Math.round(combinedWidth * scale);
-  const scaledHeight = Math.round(combinedHeight * scale);
+  let scaledWidth = Math.round(combinedWidth * scale);
+  let scaledHeight = Math.round(combinedHeight * scale);
+  if (scaledWidth % 2 !== 0) {
+    scaledWidth += 1;
+  }
   const timestamp = getFormattedDateTime();
   const tempRecordingPath = path.join(
     config.tempDirectory,
@@ -198,6 +202,10 @@ app.whenReady().then(() => {
     {
       label: "Open Config File",
       click: () => shell.openPath(configPath),
+    },
+    {
+      label: "Open Log File",
+      click: () => shell.openPath(logPath),
     },
     {
       label: "Quit",
