@@ -41,8 +41,8 @@ function readConfig() {
     console.log("Config file not found. Creating default configuration...");
     const defaultConfig = {
       videoDuration: 300,
-      tempDirectory: "O:\\recordings\\temp",
-      storageDirectory: "O:\\recordings\\final",
+      tempDirectory: "D:\\recordings\\temp",
+      storageDirectory: "D:\\recordings\\final",
       startHour: 0,
       stopHour: 24,
       active: true,
@@ -132,11 +132,11 @@ function startRecording(config) {
   const timestamp = getFormattedDateTime();
   const tempRecordingPath = path.join(
     config.tempDirectory,
-    `TEST-${timestamp}.mp4`
+    `rec-${timestamp}.mp4`
   );
   const storageRecordingPath = path.join(
     config.storageDirectory,
-    `TEST-${timestamp}.mp4`
+    `rec-${timestamp}.mp4`
   );
 
   const { frameRate, bitrate } = config.videoQuality;
