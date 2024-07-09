@@ -30,6 +30,7 @@ const configPath = path.join(configDir, "config.json");
 
 console.log(`Config directory: ${configDir}`);
 console.log(`Config file path: ${configPath}`);
+console.log(`Log file path: ${logPath}`);
 
 function readConfig() {
   if (fs.existsSync(configPath)) {
@@ -131,11 +132,11 @@ function startRecording(config) {
   const timestamp = getFormattedDateTime();
   const tempRecordingPath = path.join(
     config.tempDirectory,
-    `recording-${timestamp}.mp4`
+    `TEST-${timestamp}.mp4`
   );
   const storageRecordingPath = path.join(
     config.storageDirectory,
-    `recording-${timestamp}.mp4`
+    `TEST-${timestamp}.mp4`
   );
 
   const { frameRate, bitrate } = config.videoQuality;
