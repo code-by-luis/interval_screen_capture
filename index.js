@@ -30,7 +30,6 @@ const configPath = path.join(configDir, "config.json");
 
 console.log(`Config directory: ${configDir}`);
 console.log(`Config file path: ${configPath}`);
-console.log(`Log file path: ${logPath}`);
 
 function readConfig() {
   if (fs.existsSync(configPath)) {
@@ -41,8 +40,8 @@ function readConfig() {
     console.log("Config file not found. Creating default configuration...");
     const defaultConfig = {
       videoDuration: 300,
-      tempDirectory: "D:\\recordings\\temp",
-      storageDirectory: "D:\\recordings\\final",
+      tempDirectory: "\\\\server\\path\\to\\temp", // Example network path
+      storageDirectory: "\\\\server\\path\\to\\final", // Example network path
       startHour: 0,
       stopHour: 24,
       active: true,
@@ -79,9 +78,12 @@ function getFormattedDateTime() {
 }
 
 function ensureDirectoryExists(directory) {
+  console.log(`Ensuring directory exists: ${directory}`);
   if (!fs.existsSync(directory)) {
     console.log(`Creating directory: ${directory}`);
     fs.mkdirSync(directory, { recursive: true });
+  } else {
+    console.log(`Directory already exists: ${directory}`);
   }
 }
 
@@ -132,11 +134,11 @@ function startRecording(config) {
   const timestamp = getFormattedDateTime();
   const tempRecordingPath = path.join(
     config.tempDirectory,
-    `rec-${timestamp}.mp4`
+    `recording-${timestamp}.mp4`
   );
   const storageRecordingPath = path.join(
     config.storageDirectory,
-    `rec-${timestamp}.mp4`
+    `recording-${timestamp}.mp4`
   );
 
   const { frameRate, bitrate } = config.videoQuality;
@@ -154,13 +156,20 @@ function startRecording(config) {
     }
     console.log(`FFmpeg stdout: ${stdout}`);
     // Move completed recording to storage directory
-    fs.rename(tempRecordingPath, storageRecordingPath, (err) => {
+    fs.copyFile(tempRecordingPath, storageRecordingPath, (err) => {
       if (err) {
         console.error(
-          `Failed to move recording to storage directory: ${err.message}`
+          `Failed to copy recording to storage directory: ${err.message}`
         );
       } else {
-        console.log(`Recording moved to storage: ${storageRecordingPath}`);
+        console.log(`Recording copied to storage: ${storageRecordingPath}`);
+        fs.unlink(tempRecordingPath, (err) => {
+          if (err) {
+            console.error(`Failed to delete temp recording: ${err.message}`);
+          } else {
+            console.log(`Temp recording deleted: ${tempRecordingPath}`);
+          }
+        });
       }
     });
     setTimeout(() => startRecording(config), 1000);
@@ -198,7 +207,7 @@ function deleteOldRecordings(directory, daysBeforeDelete) {
 
 app.whenReady().then(() => {
   const config = readConfig();
-  tray = new Tray(path.join(__dirname, "icon.png"));
+  tray = new Tray(path.join(app.getAppPath(), "icon.png"));
   const contextMenu = Menu.buildFromTemplate([
     {
       label: "Open Config File",
