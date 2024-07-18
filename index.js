@@ -239,6 +239,33 @@ app.whenReady().then(() => {
   }, 24 * 60 * 60 * 1000); // Check once a day
 
   console.log("Tray application started");
+  console.log(app.getPath("exe"));
+
+  let autoLaunch = new AutoLaunch({
+    name: "interval_screen_capture",
+    path: app.getPath("exe"),
+  });
+
+  autoLaunch
+    .isEnabled()
+    .then((isEnabled) => {
+      if (!isEnabled) {
+        autoLaunch
+          .enable()
+          .then(() => {
+            console.log("Auto-launch enabled successfully.");
+          })
+          .catch((err) => {
+            console.error("Failed to enable auto-launch", err);
+          });
+      } else {
+        console.log("Auto-launch is already enabled.");
+      }
+    })
+    .catch((err) => {
+      console.error("Failed to check auto-launch status", err);
+    });
+
   startRecording(config);
 });
 
@@ -246,13 +273,4 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
-});
-
-const autoLauncher = new AutoLaunch({
-  name: "YourApp",
-  path: app.getPath("exe"),
-});
-
-autoLauncher.isEnabled().then((isEnabled) => {
-  if (!isEnabled) autoLauncher.enable();
 });
