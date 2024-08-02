@@ -1,4 +1,4 @@
-const { app, Tray, Menu, screen, shell } = require("electron");
+const { app, Tray, Menu, screen, shell, powerMonitor } = require("electron");
 const path = require("path");
 const fs = require("fs");
 var util = require("util");
@@ -178,6 +178,13 @@ function startRecording(config) {
   });
 }
 
+function stopRecording() {
+  if (currentRecordingProcess) {
+    currentRecordingProcess.kill();
+    currentRecordingProcess = null;
+  }
+}
+
 function deleteOldRecordings(directory, daysBeforeDelete) {
   const now = Date.now();
   const cutoffTime = now - daysBeforeDelete * 24 * 60 * 60 * 1000;
@@ -267,6 +274,16 @@ app.whenReady().then(() => {
     });
 
   startRecording(config);
+
+  powerMonitor.on("lock-screen", () => {
+    console.log("Screen locked, stopping recording");
+    stopRecording();
+  });
+
+  powerMonitor.on("unlock-screen", () => {
+    console.log("Screen unlocked, resuming recording");
+    startRecording(config);
+  });
 });
 
 app.on("window-all-closed", () => {
