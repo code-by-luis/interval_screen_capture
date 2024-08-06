@@ -1,4 +1,12 @@
-const { app, Tray, Menu, screen, shell, powerMonitor } = require("electron");
+const {
+  app,
+  Tray,
+  Menu,
+  screen,
+  shell,
+  powerMonitor,
+  dialog,
+} = require("electron");
 const path = require("path");
 const fs = require("fs");
 var util = require("util");
@@ -7,6 +15,7 @@ const ffmpegStatic = require("ffmpeg-static");
 const { exec } = require("child_process");
 const AutoLaunch = require("auto-launch");
 const { autoUpdater } = require("electron-updater");
+const log = require("electron-log");
 
 const packageJson = require(path.join(app.getAppPath(), "package.json"));
 const appVersion = packageJson.version;

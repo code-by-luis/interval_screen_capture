@@ -1,6 +1,6 @@
 {
   "name": "interval_screen_capture",
-  "version": "1.0.6",
+  "version": "1.0.9",
   "description": "System tray screen recorder",
   "main": "index.js",
   "scripts": {
@@ -17,7 +17,7 @@
         {
           "provider": "github",
           "owner": "code-by-luis",
-          "repo": "interval-screen-capture"
+          "repo": "interval_screen_capture"
         }
       ]
     }
@@ -30,6 +30,8 @@
   },
   "dependencies": {
     "auto-launch": "^5.0.6",
+    "electron-is-dev": "^3.0.1",
+    "electron-log": "^5.1.7",
     "electron-screen-recorder": "^0.0.3",
     "electron-updater": "^6.2.1",
     "ffmpeg-static": "^5.2.0",
