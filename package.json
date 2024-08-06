@@ -1,18 +1,25 @@
 {
   "name": "interval_screen_capture",
-  "version": "1.0.5",
-  "description": "",
+  "version": "1.0.6",
+  "description": "System tray screen recorder",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder --publish always"
   },
-   "build": {
+  "build": {
     "appId": "com.yourname.yourapp",
     "win": {
       "target": "nsis",
-      "requestedExecutionLevel": "requireAdministrator"
+      "requestedExecutionLevel": "requireAdministrator",
+      "publish": [
+        {
+          "provider": "github",
+          "owner": "code-by-luis",
+          "repo": "interval-screen-capture"
+        }
+      ]
     }
   },
   "author": "",
@@ -24,6 +31,7 @@
   "dependencies": {
     "auto-launch": "^5.0.6",
     "electron-screen-recorder": "^0.0.3",
+    "electron-updater": "^6.2.1",
     "ffmpeg-static": "^5.2.0",
     "fluent-ffmpeg": "^2.1.3",
     "react": "^18.3.1",

@@ -6,8 +6,13 @@ const ffmpeg = require("fluent-ffmpeg");
 const ffmpegStatic = require("ffmpeg-static");
 const { exec } = require("child_process");
 const AutoLaunch = require("auto-launch");
+const { autoUpdater } = require("electron-updater");
+
 const packageJson = require(path.join(app.getAppPath(), "package.json"));
 const appVersion = packageJson.version;
+
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = "info";
 
 const configDir = app.getPath("userData");
 const logPath = path.join(configDir, "log.txt");
@@ -226,6 +231,12 @@ app.whenReady().then(() => {
       enabled: false,
     },
     {
+      label: "Check for Updates",
+      click: () => {
+        autoUpdater.checkForUpdatesAndNotify();
+      },
+    },
+    {
       label: "Open Config File",
       click: () => shell.openPath(configPath),
     },
@@ -284,10 +295,37 @@ app.whenReady().then(() => {
     console.log("Screen unlocked, resuming recording");
     startRecording(config);
   });
+
+  autoUpdater.checkForUpdatesAndNotify();
 });
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+autoUpdater.on("update-available", (info) => {
+  dialog.showMessageBox({
+    type: "info",
+    title: "Update available",
+    message: "A new update is available. Downloading now...",
+  });
+});
+
+autoUpdater.on("update-downloaded", (info) => {
+  dialog
+    .showMessageBox({
+      type: "info",
+      title: "Update ready",
+      message:
+        "A new update is ready. Restart the application to apply the updates.",
+      buttons: ["Restart", "Later"],
+    })
+    .then((result) => {
+      const buttonIndex = result.response;
+      if (buttonIndex === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
 });
