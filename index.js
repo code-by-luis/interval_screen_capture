@@ -345,7 +345,7 @@ app.whenReady().then(() => {
     startRecording(config);
   });
 
-  autoUpdater.checkForUpdatesAndNotify();
+  //autoUpdater.checkForUpdatesAndNotify();
 });
 
 app.on("window-all-closed", () => {
