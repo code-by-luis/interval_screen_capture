@@ -308,7 +308,7 @@ app.whenReady().then(() => {
   console.log("Tray application started");
   console.log(app.getPath("exe"));
 
-  let autoLaunch = new AutoLaunch({
+  /*let autoLaunch = new AutoLaunch({
     name: "interval_screen_capture",
     path: app.getPath("exe"),
   });
@@ -331,7 +331,7 @@ app.whenReady().then(() => {
     })
     .catch((err) => {
       console.error("Failed to check auto-launch status", err);
-    });
+    }); */
 
   startRecording(config);
 
@@ -360,6 +360,10 @@ autoUpdater.on("update-available", (info) => {
     title: "Update available",
     message: "A new update is available. Downloading now...",
   });
+});
+
+app.setLoginItemSettings({
+  openAtLogin: true,
 });
 
 autoUpdater.on("update-not-available", (info) => {
