@@ -20,6 +20,11 @@ const log = require("electron-log");
 const packageJson = require(path.join(app.getAppPath(), "package.json"));
 const appVersion = packageJson.version;
 
+function getTimestamp() {
+  const now = new Date();
+  return now.toISOString(); // Formats the date to ISO string (e.g., 2020-01-01T00:00:00.000Z)
+}
+
 autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = "info";
 
@@ -29,8 +34,10 @@ var logFile = fs.createWriteStream(logPath, { flags: "a" });
 var logStdout = process.stdout;
 
 console.log = function () {
-  logFile.write(util.format.apply(null, arguments) + "\n");
-  logStdout.write(util.format.apply(null, arguments) + "\n");
+  let args = Array.from(arguments);
+  args.unshift(getFormattedDateTime() + " |");
+  logFile.write(util.format.apply(null, args) + "\n");
+  logStdout.write(util.format.apply(null, args) + "\n");
 };
 console.error = console.log;
 
@@ -42,6 +49,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 let tray = null;
 let currentRecordingProcess = null;
+let tempRecordingPath = null; // To store the path of the current recording
 const configPath = path.join(configDir, "config.json");
 
 console.log(`Config directory: ${configDir}`);
@@ -148,7 +156,7 @@ function startRecording(config) {
     scaledWidth += 1;
   }
   const timestamp = getFormattedDateTime();
-  const tempRecordingPath = path.join(
+  tempRecordingPath = path.join(
     config.tempDirectory,
     `recording-${timestamp}.mp4`
   );
@@ -168,35 +176,63 @@ function startRecording(config) {
       return;
     }
     if (stderr) {
-      console.error(`FFmpeg stderr: ${stderr}`);
+      //console.error(`FFmpeg stderr: ${stderr}`);
     }
     console.log(`FFmpeg stdout: ${stdout}`);
-    // Move completed recording to storage directory
-    fs.copyFile(tempRecordingPath, storageRecordingPath, (err) => {
-      if (err) {
-        console.error(
-          `Failed to copy recording to storage directory: ${err.message}`
-        );
-      } else {
-        console.log(`Recording copied to storage: ${storageRecordingPath}`);
-        fs.unlink(tempRecordingPath, (err) => {
-          if (err) {
-            console.error(`Failed to delete temp recording: ${err.message}`);
-          } else {
-            console.log(`Temp recording deleted: ${tempRecordingPath}`);
-          }
-        });
-      }
-    });
+    moveRecordingToStorage(tempRecordingPath, storageRecordingPath);
     setTimeout(() => startRecording(config), 1000);
   });
 }
 
+function moveRecordingToStorage(tempRecordingPath, storageRecordingPath) {
+  // Move completed recording to storage directory
+  fs.copyFile(tempRecordingPath, storageRecordingPath, (err) => {
+    if (err) {
+      console.error(
+        `Failed to copy recording to storage directory: ${err.message}`
+      );
+    } else {
+      console.log(`Recording copied to storage: ${storageRecordingPath}`);
+      fs.unlink(tempRecordingPath, (err) => {
+        if (err) {
+          console.error(`Failed to delete temp recording: ${err.message}`);
+        } else {
+          console.log(`Temp recording deleted: ${tempRecordingPath}`);
+        }
+      });
+    }
+  });
+}
+
 function stopRecording() {
+  var config = readConfig();
   if (currentRecordingProcess) {
-    currentRecordingProcess.kill();
-    currentRecordingProcess = null;
+    // Gracefully stop the FFmpeg recording process
+    currentRecordingProcess.stdin.write("q"); // Send 'q' to FFmpeg to stop recording
+    currentRecordingProcess.on("close", () => {
+      // Move the recording after FFmpeg process has exited
+      if (tempRecordingPath) {
+        const storageRecordingPath = tempRecordingPath.replace(
+          config.tempDirectory,
+          config.storageDirectory
+        );
+        moveRecordingToStorage(tempRecordingPath, storageRecordingPath);
+        tempRecordingPath = null;
+      }
+      currentRecordingProcess = null;
+      console.log("Recording stopped and moved due to screen lock.");
+    });
   }
+}
+
+function clearLogFile() {
+  fs.truncate(logPath, 0, function (err) {
+    if (err) {
+      console.error(`Failed to clear log file: ${err.message}`);
+    } else {
+      console.log(`Log file cleared successfully.`);
+    }
+  });
 }
 
 function deleteOldRecordings(directory, daysBeforeDelete) {
@@ -248,6 +284,10 @@ app.whenReady().then(() => {
     {
       label: "Open Config File",
       click: () => shell.openPath(configPath),
+    },
+    {
+      label: "Clear Log File",
+      click: () => clearLogFile(),
     },
     {
       label: "Open Log File",
@@ -319,6 +359,14 @@ autoUpdater.on("update-available", (info) => {
     type: "info",
     title: "Update available",
     message: "A new update is available. Downloading now...",
+  });
+});
+
+autoUpdater.on("update-not-available", (info) => {
+  dialog.showMessageBox({
+    type: "info",
+    title: "No Updates Available",
+    message: "You are currently using the latest version of the application.",
   });
 });
 
