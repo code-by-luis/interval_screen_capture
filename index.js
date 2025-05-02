@@ -301,6 +301,8 @@ app.whenReady().then(() => {
   tray.setToolTip("Screen Recorder");
   tray.setContextMenu(contextMenu);
 
+  deleteOldRecordings(config.storageDirectory, config.daysBeforeDelete);
+
   setInterval(() => {
     deleteOldRecordings(config.storageDirectory, config.daysBeforeDelete);
   }, 24 * 60 * 60 * 1000); // Check once a day
