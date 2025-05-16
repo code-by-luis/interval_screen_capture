@@ -115,7 +115,12 @@ function getCombinedScreenResolution() {
   const displays = screen.getAllDisplays();
   let totalWidth = 0;
   let maxHeight = 0;
+  let monitor = 0;
   displays.forEach((display) => {
+    monitor = monitor + 1;
+    console.log("monitor: " + monitor);
+    console.log("width: " + display.bounds.width);
+    console.log("height: " + display.bounds.height);
     totalWidth += display.bounds.width;
     if (display.bounds.height > maxHeight) {
       maxHeight = display.bounds.height;
@@ -155,6 +160,10 @@ function startRecording(config) {
   if (scaledWidth % 2 !== 0) {
     scaledWidth += 1;
   }
+  if (scaledHeight % 2 !== 0) {
+    scaledHeight += 1;
+  }
+  console.log("scaledHeight: " + scaledHeight);
   const timestamp = getFormattedDateTime();
   tempRecordingPath = path.join(
     config.tempDirectory,
